@@ -1,3 +1,4 @@
+const User = require('../users/users-model')
 /*
   If the user does not have a session saved in the server
 
@@ -6,8 +7,13 @@
     "message": "You shall not pass!"
   }
 */
-function restricted() {
-
+async function restricted(req, res, next) {
+  if (req.session.user) {
+    next()
+  }
+  else {
+    next({ status: 401, message: 'you shall not pass' })
+  }
 }
 
 /*
@@ -18,8 +24,20 @@ function restricted() {
     "message": "Username taken"
   }
 */
-function checkUsernameFree() {
-
+async function checkUsernameFree(req, res, next) {
+  try {
+    const user = await User.findBy({ username: req.body.username })
+    console.log(user)
+    if (!user.length) {
+      next()
+    }
+    else {
+      next({ status: 422, message: 'Username taken' })
+    }
+  }
+  catch (err) {
+    next(err)
+  }
 }
 
 /*
@@ -30,8 +48,20 @@ function checkUsernameFree() {
     "message": "Invalid credentials"
   }
 */
-function checkUsernameExists() {
-
+async function checkUsernameExists(req, res, next) {
+  try {
+    const users = await User.findBy({ username: req.body.username })
+    if (users.length) {
+      req.user = users[0]
+      next()
+    }
+    else {
+      next({ status: 401, message: "invalid credentials" })
+    }
+  }
+  catch (error) {
+    next(error)
+  }
 }
 
 /*
@@ -42,12 +72,26 @@ function checkUsernameExists() {
     "message": "Password must be longer than 3 chars"
   }
 */
-function checkPasswordLength() {
+async function checkPasswordLength(req, res, next) {
+  try {
+    const { password } = req.body
+    if (password < 3 || password === undefined) {
+
+      next({ status: 422, message: 'Password must be longer than 3 chars' })
+    }
+    else {
+      req.password = password
+      next()
+    }
+  }
+  catch (err) {
+    next(err)
+  }
 
 }
 
 // Don't forget to add these to the `exports` object so they can be required in other modules
-module.exports={
+module.exports = {
   checkUsernameFree,
   checkUsernameExists,
   checkPasswordLength,
